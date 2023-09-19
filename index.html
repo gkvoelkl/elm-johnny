@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meine Neue Webseite</title>
+    <style>
+        body {
+            background-color: #fff;
+            font-family: monospace;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2em;
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>where is my 🍏</h1>
+    <div id="elm-app-is-loaded-here"></div>
+    
+    <script src="elm.js"></script>
+    <script>
+      var app = Elm.Main.init({
+        node: document.getElementById("elm-app-is-loaded-here")
+      });      
+    </script>
+    <p>Help Jonny find as many apples as possible within a minute. Control is via the arrow keys.</p>
+</body>
+</html>
