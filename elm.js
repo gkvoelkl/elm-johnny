@@ -5582,6 +5582,10 @@ var $author$project$Main$initRectangles = F3(
 			}
 		}
 	});
+var $author$project$Main$initTouches = {
+	difXY: _Utils_Tuple2(0, 0),
+	lastXY: _Utils_Tuple2(0, 0)
+};
 var $elm$random$Random$initialSeed = function (x) {
 	var _v0 = $elm$random$Random$next(
 		A2($elm$random$Random$Seed, 0, 1013904223));
@@ -5593,18 +5597,19 @@ var $elm$random$Random$initialSeed = function (x) {
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
-var $author$project$Main$init = function (_v0) {
-	var seed = $elm$random$Random$initialSeed(42);
-	var _v1 = A3($author$project$Main$initRectangles, 40, seed, _List_Nil);
-	var rectangles = _v1.a;
-	var seed1 = _v1.b;
-	var _v2 = $author$project$Main$initApple(seed1);
-	var apple = _v2.a;
-	var seed2 = _v2.b;
+var $author$project$Main$init = function (seed) {
+	var seed0 = $elm$random$Random$initialSeed(seed);
+	var _v0 = A3($author$project$Main$initRectangles, 40, seed0, _List_Nil);
+	var rectangles = _v0.a;
+	var seed1 = _v0.b;
+	var _v1 = $author$project$Main$initApple(seed1);
+	var apple = _v1.a;
+	var seed2 = _v1.b;
 	return _Utils_Tuple2(
-		{apple: apple, gameStatus: $author$project$Main$Starting, keys: $author$project$Main$initKeys, player: $author$project$Main$initPlayer, rectangleBuffer: 10, rectangles: rectangles, score: 0, screenHeight: 500, screenWidth: 500, seed: seed2, time: 60000},
+		{apple: apple, gameStatus: $author$project$Main$Starting, keys: $author$project$Main$initKeys, player: $author$project$Main$initPlayer, rectangleBuffer: 10, rectangles: rectangles, score: 0, screenHeight: 500, screenWidth: 500, seed: seed2, time: 60000, touch: $author$project$Main$initTouches},
 		$elm$core$Platform$Cmd$none);
 };
+var $elm$json$Json$Decode$int = _Json_decodeInt;
 var $author$project$Main$KeyDown = function (a) {
 	return {$: 'KeyDown', a: a};
 };
@@ -6058,6 +6063,45 @@ var $author$project$Main$subscriptions = function (model) {
 				$elm$browser$Browser$Events$onAnimationFrameDelta($author$project$Main$OnAnimationFrame)
 			]));
 };
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $elm$core$Maybe$withDefault = F2(
+	function (_default, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return value;
+		} else {
+			return _default;
+		}
+	});
+var $author$project$Main$touchCoordinates = function (event) {
+	return A2(
+		$elm$core$Maybe$withDefault,
+		_Utils_Tuple2(0, 0),
+		A2(
+			$elm$core$Maybe$map,
+			function ($) {
+				return $.clientPos;
+			},
+			$elm$core$List$head(event.changedTouches)));
+};
 var $elm$core$Dict$get = F2(
 	function (targetKey, dict) {
 		get:
@@ -6464,20 +6508,15 @@ var $elm$core$Dict$update = F3(
 	});
 var $author$project$Main$End = {$: 'End'};
 var $author$project$Main$Running = {$: 'Running'};
-var $author$project$Main$updatePlayer = F3(
-	function (player, keys, timeDelta) {
-		var y = _Utils_eq(
-			A2($elm$core$Dict$get, 'Up', keys),
-			$elm$core$Maybe$Just(true)) ? (player.y - $elm$core$Basics$floor(player.velocity * timeDelta)) : (_Utils_eq(
-			A2($elm$core$Dict$get, 'Down', keys),
-			$elm$core$Maybe$Just(true)) ? (player.y + $elm$core$Basics$floor(player.velocity * timeDelta)) : player.y);
-		var x = _Utils_eq(
-			A2($elm$core$Dict$get, 'Right', keys),
-			$elm$core$Maybe$Just(true)) ? (player.x + $elm$core$Basics$floor(player.velocity * timeDelta)) : (_Utils_eq(
-			A2($elm$core$Dict$get, 'Left', keys),
-			$elm$core$Maybe$Just(true)) ? (player.x - $elm$core$Basics$floor(player.velocity * timeDelta)) : player.x);
+var $elm$core$Basics$neq = _Utils_notEqual;
+var $elm$core$Basics$sqrt = _Basics_sqrt;
+var $author$project$Main$updatePlayer = F4(
+	function (player, keys, touch, timeDelta) {
 		var slotTime = (player.slotTime > 0) ? (player.slotTime - timeDelta) : player.slotChange;
 		var currentSlotElement = ((player.slotTime - timeDelta) < 0) ? ((_Utils_cmp(player.maxSlotElement, player.currentSlotElement) > 0) ? (player.currentSlotElement + 1) : 0) : player.currentSlotElement;
+		var _v0 = touch.difXY;
+		var dx = _v0.a;
+		var dy = _v0.b;
 		var currentSlot = _Utils_eq(
 			A2($elm$core$Dict$get, 'Right', keys),
 			$elm$core$Maybe$Just(true)) ? 'Right' : (_Utils_eq(
@@ -6486,7 +6525,20 @@ var $author$project$Main$updatePlayer = F3(
 			A2($elm$core$Dict$get, 'Up', keys),
 			$elm$core$Maybe$Just(true)) ? 'Up' : (_Utils_eq(
 			A2($elm$core$Dict$get, 'Down', keys),
-			$elm$core$Maybe$Just(true)) ? 'Down' : 'Default')));
+			$elm$core$Maybe$Just(true)) ? 'Down' : ((dx < 0) ? 'Right' : ((dx > 0) ? 'Left' : ((dy < 0) ? 'Down' : ((dy > 0) ? 'Up' : 'Default')))))));
+		var xyLength = (!_Utils_eq(
+			touch.difXY,
+			_Utils_Tuple2(0, 0))) ? $elm$core$Basics$sqrt((dx * dx) + (dy * dy)) : 0;
+		var x = (!(!dx)) ? (player.x - $elm$core$Basics$floor(((player.velocity * timeDelta) * (dx / xyLength)) * 1.5)) : (_Utils_eq(
+			A2($elm$core$Dict$get, 'Right', keys),
+			$elm$core$Maybe$Just(true)) ? (player.x + $elm$core$Basics$floor(player.velocity * timeDelta)) : (_Utils_eq(
+			A2($elm$core$Dict$get, 'Left', keys),
+			$elm$core$Maybe$Just(true)) ? (player.x - $elm$core$Basics$floor(player.velocity * timeDelta)) : player.x));
+		var y = (!(!dy)) ? (player.y - $elm$core$Basics$floor(((player.velocity * timeDelta) * (dy / xyLength)) * 1.5)) : (_Utils_eq(
+			A2($elm$core$Dict$get, 'Up', keys),
+			$elm$core$Maybe$Just(true)) ? (player.y - $elm$core$Basics$floor(player.velocity * timeDelta)) : (_Utils_eq(
+			A2($elm$core$Dict$get, 'Down', keys),
+			$elm$core$Maybe$Just(true)) ? (player.y + $elm$core$Basics$floor(player.velocity * timeDelta)) : player.y));
 		return _Utils_update(
 			player,
 			{currentSlot: currentSlot, currentSlotElement: currentSlotElement, slotTime: slotTime, x: x, y: y});
@@ -6518,14 +6570,16 @@ var $author$project$Main$updateOnFrame = F2(
 				case 'Starting':
 					return _Utils_eq(
 						A2($elm$core$Dict$get, 'Any', model.keys),
-						$elm$core$Maybe$Just(true)) ? $author$project$Main$Running : model.gameStatus;
+						$elm$core$Maybe$Just(true)) ? $author$project$Main$Running : ((!_Utils_eq(
+						model.touch.lastXY,
+						_Utils_Tuple2(0, 0))) ? $author$project$Main$Running : model.gameStatus);
 				case 'Running':
 					return (model.time <= 0) ? $author$project$Main$End : model.gameStatus;
 				default:
 					return $author$project$Main$End;
 			}
 		}();
-		var player = _Utils_eq(gameStatus, $author$project$Main$Running) ? A3($author$project$Main$updatePlayer, model.player, model.keys, timeDelta) : model.player;
+		var player = _Utils_eq(gameStatus, $author$project$Main$Running) ? A4($author$project$Main$updatePlayer, model.player, model.keys, model.touch, timeDelta) : model.player;
 		var touching = (_Utils_cmp(
 			$elm$core$Basics$abs(player.x - model.apple.x),
 			model.apple.size) < 0) && (_Utils_cmp(
@@ -6560,6 +6614,46 @@ var $author$project$Main$updateOnFrame = F2(
 				}),
 			$elm$core$Platform$Cmd$none);
 	});
+var $author$project$Main$updateOnTouch = F3(
+	function (touchEvent, _v0, model) {
+		var x = _v0.a;
+		var y = _v0.b;
+		var _v1 = function () {
+			switch (touchEvent.$) {
+				case 'TouchStart':
+					return _Utils_Tuple2(x, y);
+				case 'TouchMove':
+					return _Utils_Tuple2(x, y);
+				default:
+					return _Utils_Tuple2(0, 0);
+			}
+		}();
+		var newLastX = _v1.a;
+		var newLastY = _v1.b;
+		var _v3 = model.touch.lastXY;
+		var lastX = _v3.a;
+		var lastY = _v3.b;
+		var _v4 = function () {
+			switch (touchEvent.$) {
+				case 'TouchStart':
+					return _Utils_Tuple2(0, 0);
+				case 'TouchMove':
+					return _Utils_Tuple2(lastX - x, lastY - y);
+				default:
+					return _Utils_Tuple2(0, 0);
+			}
+		}();
+		var difX = _v4.a;
+		var difY = _v4.b;
+		return _Utils_update(
+			model,
+			{
+				touch: {
+					difXY: _Utils_Tuple2(difX, difY),
+					lastXY: _Utils_Tuple2(newLastX, newLastY)
+				}
+			});
+	});
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
@@ -6593,11 +6687,28 @@ var $author$project$Main$update = F2(
 								model.keys)
 						}),
 					$elm$core$Platform$Cmd$none);
+			case 'Touch':
+				var touchEvent = msg.a;
+				var eventData = msg.b;
+				return _Utils_Tuple2(
+					A3(
+						$author$project$Main$updateOnTouch,
+						touchEvent,
+						$author$project$Main$touchCoordinates(eventData),
+						model),
+					$elm$core$Platform$Cmd$none);
 			default:
 				var timeDelta = msg.a;
 				return A2($author$project$Main$updateOnFrame, model, timeDelta);
 		}
 	});
+var $author$project$Main$Touch = F2(
+	function (a, b) {
+		return {$: 'Touch', a: a, b: b};
+	});
+var $author$project$Main$TouchEnd = {$: 'TouchEnd'};
+var $author$project$Main$TouchMove = {$: 'TouchMove'};
+var $author$project$Main$TouchStart = {$: 'TouchStart'};
 var $elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -6623,6 +6734,130 @@ var $elm$svg$Svg$trustedNode = _VirtualDom_nodeNS('http://www.w3.org/2000/svg');
 var $elm$svg$Svg$g = $elm$svg$Svg$trustedNode('g');
 var $elm$svg$Svg$Attributes$height = _VirtualDom_attribute('height');
 var $elm$svg$Svg$image = $elm$svg$Svg$trustedNode('image');
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$defaultOptions = {preventDefault: true, stopPropagation: false};
+var $elm$virtual_dom$VirtualDom$Custom = function (a) {
+	return {$: 'Custom', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$custom = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Custom(decoder));
+	});
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$Event = F4(
+	function (keys, changedTouches, targetTouches, touches) {
+		return {changedTouches: changedTouches, keys: keys, targetTouches: targetTouches, touches: touches};
+	});
+var $mpizenberg$elm_pointer_events$Internal$Decode$Keys = F4(
+	function (alt, ctrl, meta, shift) {
+		return {alt: alt, ctrl: ctrl, meta: meta, shift: shift};
+	});
+var $elm$json$Json$Decode$bool = _Json_decodeBool;
+var $elm$json$Json$Decode$map4 = _Json_map4;
+var $mpizenberg$elm_pointer_events$Internal$Decode$keys = A5(
+	$elm$json$Json$Decode$map4,
+	$mpizenberg$elm_pointer_events$Internal$Decode$Keys,
+	A2($elm$json$Json$Decode$field, 'altKey', $elm$json$Json$Decode$bool),
+	A2($elm$json$Json$Decode$field, 'ctrlKey', $elm$json$Json$Decode$bool),
+	A2($elm$json$Json$Decode$field, 'metaKey', $elm$json$Json$Decode$bool),
+	A2($elm$json$Json$Decode$field, 'shiftKey', $elm$json$Json$Decode$bool));
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$Touch = F4(
+	function (identifier, clientPos, pagePos, screenPos) {
+		return {clientPos: clientPos, identifier: identifier, pagePos: pagePos, screenPos: screenPos};
+	});
+var $elm$json$Json$Decode$float = _Json_decodeFloat;
+var $mpizenberg$elm_pointer_events$Internal$Decode$clientPos = A3(
+	$elm$json$Json$Decode$map2,
+	F2(
+		function (a, b) {
+			return _Utils_Tuple2(a, b);
+		}),
+	A2($elm$json$Json$Decode$field, 'clientX', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'clientY', $elm$json$Json$Decode$float));
+var $mpizenberg$elm_pointer_events$Internal$Decode$pagePos = A3(
+	$elm$json$Json$Decode$map2,
+	F2(
+		function (a, b) {
+			return _Utils_Tuple2(a, b);
+		}),
+	A2($elm$json$Json$Decode$field, 'pageX', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'pageY', $elm$json$Json$Decode$float));
+var $mpizenberg$elm_pointer_events$Internal$Decode$screenPos = A3(
+	$elm$json$Json$Decode$map2,
+	F2(
+		function (a, b) {
+			return _Utils_Tuple2(a, b);
+		}),
+	A2($elm$json$Json$Decode$field, 'screenX', $elm$json$Json$Decode$float),
+	A2($elm$json$Json$Decode$field, 'screenY', $elm$json$Json$Decode$float));
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchDecoder = A5(
+	$elm$json$Json$Decode$map4,
+	$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$Touch,
+	A2($elm$json$Json$Decode$field, 'identifier', $elm$json$Json$Decode$int),
+	$mpizenberg$elm_pointer_events$Internal$Decode$clientPos,
+	$mpizenberg$elm_pointer_events$Internal$Decode$pagePos,
+	$mpizenberg$elm_pointer_events$Internal$Decode$screenPos);
+var $mpizenberg$elm_pointer_events$Internal$Decode$all = A2(
+	$elm$core$List$foldr,
+	$elm$json$Json$Decode$map2($elm$core$List$cons),
+	$elm$json$Json$Decode$succeed(_List_Nil));
+var $mpizenberg$elm_pointer_events$Internal$Decode$dynamicListOf = function (itemDecoder) {
+	var decodeOne = function (n) {
+		return A2(
+			$elm$json$Json$Decode$field,
+			$elm$core$String$fromInt(n),
+			itemDecoder);
+	};
+	var decodeN = function (n) {
+		return $mpizenberg$elm_pointer_events$Internal$Decode$all(
+			A2(
+				$elm$core$List$map,
+				decodeOne,
+				A2($elm$core$List$range, 0, n - 1)));
+	};
+	return A2(
+		$elm$json$Json$Decode$andThen,
+		decodeN,
+		A2($elm$json$Json$Decode$field, 'length', $elm$json$Json$Decode$int));
+};
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchListDecoder = $mpizenberg$elm_pointer_events$Internal$Decode$dynamicListOf;
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$eventDecoder = A5(
+	$elm$json$Json$Decode$map4,
+	$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$Event,
+	$mpizenberg$elm_pointer_events$Internal$Decode$keys,
+	A2(
+		$elm$json$Json$Decode$field,
+		'changedTouches',
+		$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchListDecoder($mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchDecoder)),
+	A2(
+		$elm$json$Json$Decode$field,
+		'targetTouches',
+		$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchListDecoder($mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchDecoder)),
+	A2(
+		$elm$json$Json$Decode$field,
+		'touches',
+		$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchListDecoder($mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$touchDecoder)));
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onWithOptions = F3(
+	function (event, options, tag) {
+		return A2(
+			$elm$html$Html$Events$custom,
+			event,
+			A2(
+				$elm$json$Json$Decode$map,
+				function (ev) {
+					return {
+						message: tag(ev),
+						preventDefault: options.preventDefault,
+						stopPropagation: options.stopPropagation
+					};
+				},
+				$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$eventDecoder));
+	});
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onEnd = A2($mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onWithOptions, 'touchend', $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$defaultOptions);
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onMove = A2($mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onWithOptions, 'touchmove', $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$defaultOptions);
+var $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onStart = A2($mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onWithOptions, 'touchstart', $mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$defaultOptions);
 var $elm$svg$Svg$Attributes$style = _VirtualDom_attribute('style');
 var $elm$svg$Svg$svg = $elm$svg$Svg$trustedNode('svg');
 var $elm$core$List$takeReverse = F3(
@@ -6835,15 +7070,6 @@ var $elm$core$Array$get = F2(
 			A2($elm$core$Elm$JsArray$unsafeGet, $elm$core$Array$bitMask & index, tail)) : $elm$core$Maybe$Just(
 			A3($elm$core$Array$getHelp, startShift, index, tree)));
 	});
-var $elm$core$Maybe$withDefault = F2(
-	function (_default, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return value;
-		} else {
-			return _default;
-		}
-	});
 var $author$project$Main$viewPlayerImage = function (player) {
 	var maybeArray = A2($elm$core$Dict$get, player.currentSlot, player.animations);
 	var maybeArray1 = A2(
@@ -6938,6 +7164,7 @@ var $author$project$Main$view = function (_v0) {
 	var time = _v0.time;
 	var apple = _v0.apple;
 	var gameStatus = _v0.gameStatus;
+	var touch = _v0.touch;
 	return A2(
 		$elm$svg$Svg$svg,
 		_List_fromArray(
@@ -6948,7 +7175,13 @@ var $author$project$Main$view = function (_v0) {
 				$elm$core$String$fromInt(screenHeight)),
 				$elm$svg$Svg$Attributes$viewBox(
 				'0 0 ' + ($elm$core$String$fromInt(screenWidth) + (' ' + $elm$core$String$fromInt(screenHeight)))),
-				$elm$svg$Svg$Attributes$style('background: white')
+				$elm$svg$Svg$Attributes$style('background: white'),
+				$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onStart(
+				$author$project$Main$Touch($author$project$Main$TouchStart)),
+				$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onMove(
+				$author$project$Main$Touch($author$project$Main$TouchMove)),
+				$mpizenberg$elm_pointer_events$Html$Events$Extra$Touch$onEnd(
+				$author$project$Main$Touch($author$project$Main$TouchEnd))
 			]),
 		_List_fromArray(
 			[
@@ -7021,5 +7254,4 @@ var $author$project$Main$view = function (_v0) {
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
-_Platform_export({'Main':{'init':$author$project$Main$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$int)(0)}});}(this));

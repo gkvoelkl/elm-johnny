@@ -8,7 +8,8 @@ import Dict exposing (Dict)
 import Array exposing (..)
 import Random
 import List exposing (take)
-import Html exposing (time, div)
+import Html exposing (time)
+import Html.Events.Extra.Touch as Touch exposing(Touch)
 
 
 main : Program Flags  Model Msg
@@ -30,6 +31,7 @@ type alias Model =
     , player : Player
     , apple : Apple
     , keys : Keys
+    , touch : Touches
     , seed : Random.Seed
     , rectangles: Rectangles
     , rectangleBuffer: Int
@@ -40,6 +42,10 @@ type GameStatus
         | Running
         | End
 
+type TouchEvent
+    = TouchStart
+    | TouchMove
+    | TouchEnd
                     
 type alias Apple =
     { x : Int
@@ -76,14 +82,20 @@ type alias Animations =
 type alias Keys =
     Dict String Bool
 
+type alias Touches =
+    { lastXY : (Float, Float)
+    , difXY : (Float, Float)}
 
 -- VIEW
 view : Model -> Svg.Svg Msg
-view { player, rectangles, screenWidth, screenHeight, score, time, apple, gameStatus } = 
+view { player, rectangles, screenWidth, screenHeight, score, time, apple, gameStatus, touch } = 
    svg [width (String.fromInt screenWidth)
         , height (String.fromInt screenHeight)
         , viewBox ("0 0 " ++ (String.fromInt screenWidth) ++ " " ++ (String.fromInt screenHeight))
-        , Svg.Attributes.style "background: white"]
+        , Svg.Attributes.style "background: white"
+        , Touch.onStart <| Touch TouchStart
+        , Touch.onMove <| Touch TouchMove
+        , Touch.onEnd <| Touch TouchEnd]
         [g [ width (String.fromInt screenWidth)
             , height "100"
             , viewBox ("0 0 " ++ (String.fromInt screenWidth) ++ " 100")
@@ -161,6 +173,7 @@ viewMessage gameStatus =
             [ text <| message]
         ]
 
+
 viewScoreTime : Int -> Float -> Svg.Svg Msg
 viewScoreTime score time =
     let
@@ -194,13 +207,13 @@ randomFloat min max =
 -- UPDATE
 
 type alias Flags =
-    ()
+    Int
 
 init : Flags -> (Model, Cmd Msg)
-init _ = 
+init seed = 
     let
-        seed = Random.initialSeed 42
-        (rectangles, seed1) = initRectangles 40 seed []
+        seed0 = Random.initialSeed seed
+        (rectangles, seed1) = initRectangles 40 seed0 []
         (apple, seed2) = initApple seed1
     in
         ({ gameStatus = Starting
@@ -211,6 +224,7 @@ init _ =
         , player = initPlayer
         , apple = apple
         , keys = initKeys
+        , touch = initTouches
         , seed = seed2
         , rectangles = rectangles
         , rectangleBuffer = 10
@@ -289,7 +303,12 @@ initPlayer =
     , slotTime = 300
     , velocity = 0.1
     }
-    
+
+initTouches : Touches
+initTouches = { lastXY = (0,0)
+              , difXY  = (0,0) 
+              }
+
 initKeys:Keys
 initKeys =
      Dict.fromList
@@ -303,6 +322,7 @@ type Msg
     = OnAnimationFrame Float
     | KeyDown String
     | KeyUp String
+    | Touch TouchEvent Touch.Event
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
@@ -339,8 +359,44 @@ update msg model =
         KeyUp key ->
             ( {model| keys = Dict.update key (\_ -> Just False) model.keys}
             , Cmd.none )
+        Touch touchEvent eventData ->
+            ( updateOnTouch touchEvent (touchCoordinates eventData) model
+            , Cmd.none )
         OnAnimationFrame timeDelta ->
             updateOnFrame model timeDelta
+
+updateOnTouch : TouchEvent -> (Float, Float) -> Model -> Model
+updateOnTouch touchEvent (x, y) model =
+    let
+        (lastX, lastY) = model.touch.lastXY
+        (difX, difY) = case touchEvent of 
+                        TouchStart ->
+                            (0,0)
+                        TouchMove ->
+                            (lastX-x, lastY-y)
+                        TouchEnd ->
+                            (0,0)
+        (newLastX, newLastY) = case touchEvent of 
+                        TouchStart ->
+                            (x,y)
+                        TouchMove ->
+                            (x, y)
+                        TouchEnd ->
+                            (0,0) 
+    in
+        {model| 
+            touch = { lastXY=(newLastX,newLastY)               
+                    , difXY=(difX,difY)
+            }
+        }
+        
+
+touchCoordinates : Touch.Event -> (Float, Float)
+touchCoordinates event =
+    List.head event.changedTouches
+        |> Maybe.map .clientPos
+        |> Maybe.withDefault (0,0)
+
 
 updateOnFrame : Model -> Float -> ( Model, Cmd msg )
 updateOnFrame model timeDelta =
@@ -348,6 +404,8 @@ updateOnFrame model timeDelta =
         gameStatus = case model.gameStatus of
                         Starting ->
                             if Dict.get "Any" model.keys == Just True then
+                                Running
+                            else if model.touch.lastXY /= (0,0) then
                                 Running
                             else
                                 model.gameStatus
@@ -361,7 +419,7 @@ updateOnFrame model timeDelta =
                     
 
         player = if gameStatus == Running then
-                     updatePlayer model.player model.keys timeDelta
+                     updatePlayer model.player model.keys model.touch timeDelta
                  else
                      model.player
         touching =  abs((player.x - model.apple.x)) < model.apple.size &&
@@ -400,18 +458,27 @@ updateOnFrame model timeDelta =
             , time = time
         }, Cmd.none )
 
-updatePlayer : Player -> Keys -> Float -> Player
-updatePlayer player keys timeDelta =
+updatePlayer : Player -> Keys -> Touches -> Float -> Player
+updatePlayer player keys touch timeDelta =
     let
+        (dx, dy) = touch.difXY
+        xyLength = if touch.difXY /= (0,0) then
+                        sqrt (dx*dx+dy*dy)
+                   else
+                        0
         x = 
-            if Dict.get "Right" keys == Just True then
+            if dx /= 0 then
+                player.x - floor(player.velocity * timeDelta * (dx/xyLength) * 1.5)
+            else if Dict.get "Right" keys == Just True then
                 player.x + floor(player.velocity * timeDelta)
             else if Dict.get "Left" keys == Just True then
                 player.x - floor(player.velocity * timeDelta)
             else 
                 player.x
         y = 
-            if Dict.get "Up" keys == Just True then
+            if dy /= 0 then
+                player.y - floor(player.velocity * timeDelta * (dy/xyLength) * 1.5)
+            else if Dict.get "Up" keys == Just True then
                 player.y - floor(player.velocity * timeDelta)
             else if Dict.get "Down" keys == Just True then
                 player.y + floor(player.velocity * timeDelta)
@@ -426,6 +493,14 @@ updatePlayer player keys timeDelta =
                 "Up"
             else if Dict.get "Down" keys == Just True then
                 "Down"
+            else if dx < 0 then
+                "Right"
+            else if dx > 0 then
+                "Left"
+            else if dy < 0 then
+                "Down"
+            else if dy > 0 then
+                "Up"
             else "Default"
         currentSlotElement = 
             if player.slotTime - timeDelta < 0 then

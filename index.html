@@ -22,10 +22,12 @@
     
     <script src="elm.js"></script>
     <script>
+      let seed = Math.random() * 100;
       var app = Elm.Main.init({
-        node: document.getElementById("elm-app-is-loaded-here")
+        node: document.getElementById("elm-app-is-loaded-here"),
+        flags: Math.round(seed)
       });      
     </script>
-    <p>Help Jonny find as many apples as possible within a minute. Control is via the arrow keys.</p>
+    <p>Help Jonny find as many apples as possible within a minute. Control is via the arrow keys or touch.</p>
 </body>
 </html>
